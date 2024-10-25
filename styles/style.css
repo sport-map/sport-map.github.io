@@ -75,3 +75,16 @@ button:hover {
   color: black;
 
 }
+
+.active {
+  background-color: #4CAF50; /* Couleur de surbrillance */
+  color: white; /* Couleur du texte */
+}
+
+.validate-button {
+  display: block; /* Permet de le centrer */
+  margin: 20px auto; /* Marge en haut et en bas, centré horizontalement */
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
