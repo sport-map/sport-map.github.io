@@ -1,0 +1,76 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0; /* Adjusted to leave space for the bottom bar */
+    width: 100%;
+}
+.marker {
+    background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+    color: rgb(0, 0, 0); /* Text color */
+    border-radius: 50%;
+    padding: 10px;
+    cursor: pointer;
+    text-align: center;
+    min-width: 20px;
+    border: 2px solid #E94E1B; /* Optional: Add a border for visibility */
+}
+#fixed-circle-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 150px;
+    height: 150px;
+    border: 2px solid #E94E1B;
+    border-radius: 50%;
+    pointer-events: none;
+    display: none;
+}
+#fixed-circle {
+    position: fixed;
+    top: 20px; /* Adjusted margin from the top */
+    left: 20px; /* Adjusted margin from the left */
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.7); /* Optional: semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #E94E1B; /* Optional: border for visibility */
+}
+#fixed-circle img {
+    width: 30px; /* Adjust size as needed */
+    height: auto; /* Maintain aspect ratio */
+}
+#bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30%; /* Takes 30% of the height of the screen */
+    background-color: rgba(255, 255, 255, 0.9); /* Optional: semi-transparent background */
+    border-top-left-radius: 20px; /* Rounded corners */
+    border-top-right-radius: 20px; /* Rounded corners */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#search-input {
+    width: 80%; /* Adjust width as needed */
+    padding: 10px;
+    border: 1px solid #E94E1B; /* Border color */
+    border-radius: 5px; /* Rounded corners for the input */
+    outline: none; /* Remove outline */
+}
+#search-input::placeholder {
+    color: #999; /* Placeholder color */
+}
+/* Important hide mapbox logo */
+.mapboxgl-ctrl-logo {
+    display: none !important;
+}

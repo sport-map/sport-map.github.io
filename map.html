@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAP</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    <link rel="stylesheet" href="map.css">
+</head>
+<body>
+    <div id='map'></div>
+    <div id='fixed-circle-overlay'></div>
+    <div id="fixed-circle">
+        <img src="assets/ballon-de-foot.png" alt="Ballon de Foot" />
+    </div>
+    <div id="bottom-bar">
+        <input type="text" id="search-input" placeholder="Ville, Code postale, Département" />
+    </div>
+    <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWF0c2Rkc2QiLCJhIjoiY20ybnZlcWdwMDgyMTJqc2NhaXZ1OXY1eCJ9.0jMxkpNKzhawFcWBWg6Yjg';
+        // MAP Initialisation
+        var map = new mapboxgl.Map(
+        {
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [2.213749, 46.227638],
+            zoom: 5,
+            attributionControl: false
+        });
+
+        
+        // GLOBAL variables
+        let markers = [];
+        let lastClickedCoordinates = null;
+        let currentRegionName = null;
+        const circleRadius = 75;
+        const regionBorderLineColor = '#E94E1B'; 
+        const regionhighlightedColor = '#E94E1B'; 
+        const regionhighlightedOpacity = 0.2;
+        const departementBorderLineColor = '#E94E1B'; 
+
+
+        function calculateCircleRadiusInKm() 
+        {
+            if (!lastClickedCoordinates) return 0;
+
+            const center = map.getCenter();
+            const edge = map.unproject([map.getContainer().offsetWidth / 2 + circleRadius, map.getContainer().offsetHeight / 2]);
+            return turf.distance(
+                turf.point([center.lng, center.lat]),
+                turf.point([edge.lng, edge.lat]),
+                { units: 'kilometers' }
+            );
+        }
+
+        function getCurrentRegion(centerPoint) 
+        {
+            const source = map.getSource('france-regions');
+            if (!source) return null;
+
+            const data = source._data;
+            if (!data || !data.features) return null;
+
+            const point = turf.point(centerPoint);
+
+            for (const feature of data.features) 
+            {
+                if (turf.booleanPointInPolygon(point, feature)) 
+                {
+                    return feature.properties.nom;
+                }
+            }
+            return null;
+        }
+
+        function updateDepartmentsVisibility(regionName) 
+        {
+            // Hide all department layers first
+            map.getStyle().layers.forEach(layer => 
+            {
+                if (layer.id.startsWith('department-borders-')) 
+                {
+                    map.setLayoutProperty(layer.id, 'visibility', 'none');
+                }
+            });
+
+            // Show only the selected region's departments
+            if (regionName) {
+                const normalizedRegionName = regionName.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
+                const layerId = `department-borders-${normalizedRegionName}`;
+                if (map.getLayer(layerId)) {
+                    map.setLayoutProperty(layerId, 'visibility', 'visible');
+                }
+            }
+        }
+
+        function updateRegionVisibility(newRegion) 
+        {
+            if (map.getLayer('region-highlighted')) 
+            {
+                map.setFilter('region-highlighted', ['==', 'nom', newRegion || '']);
+            }
+        }
+
+        function updateCircleVisibility() {
+            const overlay = document.getElementById('fixed-circle-overlay');
+            if (lastClickedCoordinates) {
+                const radiusInKm = calculateCircleRadiusInKm();
+                const center = map.getCenter();
+                const centerPoint = [center.lng, center.lat];
+
+                if (radiusInKm <= 60) {
+                    // overlay.style.display = 'block';
+                    markers.forEach(marker => marker.getElement().style.display = 'none');
+
+                    const newRegion = getCurrentRegion(centerPoint);
+
+                    // Only update if the region has changed
+                    if (newRegion !== currentRegionName) {
+                        updateRegionVisibility(newRegion);
+                        updateDepartmentsVisibility(newRegion);
+                        currentRegionName = newRegion;
+                    }
+                } else {
+                    // overlay.style.display = 'none';
+                    markers.forEach(marker => marker.getElement().style.display = '');
+                    updateRegionVisibility('');
+                    updateDepartmentsVisibility('');
+                    currentRegionName = null;
+                }
+            }
+        }
+
+        map.on('load', function() 
+        {
+            // Create an array of promises for all data fetching
+            const fetchPromises = [
+                // Fetch regions data
+                fetch('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-version-simplifiee.geojson')
+                    .then(resp => resp.json()),
+                // Fetch count data
+                fetch('https://main-vision.github.io/foot_by_region.json')
+                    .then(resp => resp.json()),
+                // Fetch all department data
+                ...Object.entries(
+                {
+                    'auvergne-rhône-alpes': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-auvergne-rhône-alpes.geojson',
+                    'bourgogne-franche-comté': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-bourgogne-franche-comté.geojson',
+                    'bretagne': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-bretagne.geojson',
+                    'centre-val-de-loire': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-centre-val-de-loire.geojson',
+                    'corse': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-corse.geojson',
+                    'grand-est': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-grand-est.geojson',
+                    'hauts-de-france': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-hauts-de-france.geojson',
+                    'normandie': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-normandie.geojson',
+                    'nouvelle-aquitaine': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-nouvelle-aquitaine.geojson',
+                    'occitanie': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-occitanie.geojson',
+                    'pays-de-la-loire': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-pays-de-la-loire.geojson',
+                    'provence-alpes-côte-dazur': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-provence-alpes-côte-dazur.geojson',
+                    'île-de-france': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-île-de-france.geojson'
+                }).map(([region, url]) =>
+                    fetch(url)
+                        .then(resp => resp.json())
+                        .then(data => ({ region, data }))
+                )
+            ];
+
+            Promise.all(fetchPromises)
+                .then(([regionData, countData, ...departmentDataArray]) => 
+                {
+                    // Process regions data
+                    regionData.features.forEach(feature => {
+                        const region = feature.properties.nom;
+                        const countObj = countData.find(item => item.region === region);
+                        if (countObj) 
+                        {
+                            feature.properties.count = countObj.count;
+                        }
+                    });
+
+                    // Add region source and layers
+                    map.addSource('france-regions', 
+                    {
+                        type: 'geojson',
+                        data: regionData
+                    });
+                    // france-region-borders
+                    map.addLayer(
+                    {
+                        'id': 'france-region-borders',
+                        'type': 'line',
+                        'source': 'france-regions',
+                        'layout': {},
+                        'paint': {
+                            'line-color': regionBorderLineColor,
+                            'line-width': 1
+                        }
+                    });
+                    //region-highlighted
+                    map.addLayer(
+                    {
+                        'id': 'region-highlighted',
+                        'type': 'fill',
+                        'source': 'france-regions',
+                        'layout': {},
+                        'paint': {
+                            'fill-color': regionhighlightedColor,
+                            'fill-opacity': regionhighlightedOpacity
+                        },
+                        'filter': ['==', 'nom', '']
+                    });
+
+                    // Add all department sources and layers (initially hidden)
+                    departmentDataArray.forEach(({ region, data }) => 
+                    {
+                        const sourceId = `department-borders-source-${region}`;
+                        const layerId = `department-borders-${region}`;
+
+                        map.addSource(sourceId, 
+                        {
+                            type: 'geojson',
+                            data: data
+                        });
+
+                        map.addLayer(
+                          {
+                            'id': layerId,
+                            'type': 'line',
+                            'source': sourceId,
+                            'layout': 
+                            {
+                                'visibility': 'none'  // Initially hidden
+                            },
+                            'paint': 
+                            {
+                                'line-color': departementBorderLineColor,
+                                'line-width': 2
+                            }
+                        });
+                    });
+
+                    // Function to format count values
+                    function formatCount(count) 
+                    {
+                        if (count >= 1000) 
+                        {
+                            return (count / 1000).toFixed(1) + 'k'; // Round to one decimal place and append 'k'
+                        }
+                        return count.toString(); // Return as string for display
+                    }
+
+                    // Region markers 
+                    regionData.features.forEach((feature, index) => 
+                    {
+                        if (feature.properties.count) 
+                        {
+                            const center = turf.center(feature);
+
+                            const el = document.createElement('div');
+                            el.className = 'marker';
+                            el.innerText = formatCount(feature.properties.count); // Use the formatCount function
+
+                            const marker = new mapboxgl.Marker(el)
+                                .setLngLat(center.geometry.coordinates)
+                                .addTo(map);
+
+                            markers.push(marker);
+
+                            el.addEventListener('click', () => 
+                            {
+                                lastClickedCoordinates = center.geometry.coordinates;
+                                const bbox = turf.bbox(feature);
+                                map.fitBounds(bbox, 
+                                {
+                                    padding: 50,
+                                    maxZoom: 10
+                                });
+
+                                map.once('moveend', updateCircleVisibility);
+                            });
+                        }
+                    });
+                });
+        });
+
+        let isMoveEndTriggered = false;
+        map.on('move', function(e) 
+        {
+            if (e.source !== 'doubleClickZoom' && e.source !== 'touchZoomRotate') 
+            {
+                if (!isMoveEndTriggered) 
+                {
+                    isMoveEndTriggered = true;
+                    map.once('moveend', function() 
+                    {
+                        isMoveEndTriggered = false;
+                        updateCircleVisibility();
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
