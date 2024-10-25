@@ -41,6 +41,11 @@
         const regionhighlightedOpacity = 0.2;
         const departementBorderLineColor = '#E94E1B'; 
 
+        // Add these new global variables
+        let currentDepartmentCode = null;
+        const singleDepartmentHighlightColor = '#E94E1B';
+        const singleDepartmentHighlightOpacity = 0.2;
+
         function formatCount(count) 
         {
             if (count >= 1000) 
@@ -126,24 +131,34 @@
                 const centerPoint = [center.lng, center.lat];
 
                 if (radiusInKm <= circleRadius) {
-                    // overlay.style.display = 'block';
                     markers.forEach(marker => marker.getElement().style.display = 'none');
 
                     const newRegion = getCurrentRegion(centerPoint);
 
-                    // Only update if the region has changed
                     if (newRegion !== currentRegionName) {
                         updateRegionVisibility(newRegion);
                         updateDepartmentsVisibility(newRegion);
+                        updateSingleDepartmentVisibility(currentDepartmentCode);
+
                         currentRegionName = newRegion;
+                        currentDepartmentCode = null; // Reset department when changing region
                     }
+
                 } else {
-                    // overlay.style.display = 'none';
                     markers.forEach(marker => marker.getElement().style.display = '');
                     updateRegionVisibility('');
                     updateDepartmentsVisibility('');
+                    updateSingleDepartmentVisibility(null);
                     currentRegionName = null;
+                    currentDepartmentCode = null;
                 }
+            }
+        }
+
+        // Add this new function
+        function updateSingleDepartmentVisibility(departmentCode) {
+            if (map.getLayer('single-department-highlighted')) {
+                map.setFilter('single-department-highlighted', ['==', 'code', departmentCode || '']);
             }
         }
 
@@ -253,6 +268,28 @@
                             }
                         });
                     });
+
+                    // Add a new source for single department highlighting
+                    map.addSource('single-department-highlighted', {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: []
+                        }
+                    });
+
+                    // Add the layer for single department highlighting
+                    map.addLayer({
+                        'id': 'single-department-highlighted',
+                        'type': 'fill',
+                        'source': 'single-department-highlighted',
+                        'layout': {},
+                        'paint': {
+                            'fill-color': singleDepartmentHighlightColor,
+                            'fill-opacity': singleDepartmentHighlightOpacity
+                        }
+                    });
+
                     // Region markers 
                     regionData.features.forEach((feature, index) => 
                     {
@@ -334,12 +371,24 @@
                 departmentMarkers.push(marker);
 
                 el.addEventListener('click', () => {
+                    // get good 
                     console.log(`Clicked on department: ${departmentName} (${departmentCode})`);
                     const bbox = turf.bbox(feature.geometry);
                     map.fitBounds(bbox, {
                         padding: 50,
                         maxZoom: 10
                     });
+
+                    // Update the current department and visibility
+                    currentDepartmentCode = departmentCode;
+                    updateSingleDepartmentVisibility(departmentCode);
+
+                    // Update the source for the single-department-highlighted layer
+                    const sourceId = `department-borders-source-${region}`;
+                    map.getSource('single-department-highlighted').setData(map.getSource(sourceId)._data);
+
+                    // Trigger circle visibility update
+                    updateCircleVisibility();
                 });
             });
         }
