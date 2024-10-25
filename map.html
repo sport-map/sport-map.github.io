@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAP</title>
+    <title>Carte interactive</title>
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
     <link rel="stylesheet" href="styles/map.css">
@@ -26,7 +26,7 @@
             container: 'map',
             style: 'mapbox://styles/mapbox/streets-v11',
             center: [2.213749, 46.227638],
-            zoom: 5,
+            zoom:4.5,
             attributionControl: false
         });
 
@@ -35,12 +35,20 @@
         let markers = [];
         let lastClickedCoordinates = null;
         let currentRegionName = null;
-        const circleRadius = 75;
+        const circleRadius = 90;
         const regionBorderLineColor = '#E94E1B'; 
         const regionhighlightedColor = '#E94E1B'; 
         const regionhighlightedOpacity = 0.2;
         const departementBorderLineColor = '#E94E1B'; 
 
+        function formatCount(count) 
+        {
+            if (count >= 1000) 
+            {
+                return (count / 1000).toFixed(1) + 'k'; // Round to one decimal place and append 'k'
+            }
+            return count.toString(); // Return as string for display
+        }
 
         function calculateCircleRadiusInKm() 
         {
@@ -86,12 +94,17 @@
                 }
             });
 
+            // Remove existing department markers
+            departmentMarkers.forEach(marker => marker.remove());
+            departmentMarkers = [];
+
             // Show only the selected region's departments
             if (regionName) {
                 const normalizedRegionName = regionName.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
                 const layerId = `department-borders-${normalizedRegionName}`;
                 if (map.getLayer(layerId)) {
                     map.setLayoutProperty(layerId, 'visibility', 'visible');
+                    createDepartmentMarkers(normalizedRegionName);
                 }
             }
         }
@@ -108,10 +121,11 @@
             const overlay = document.getElementById('fixed-circle-overlay');
             if (lastClickedCoordinates) {
                 const radiusInKm = calculateCircleRadiusInKm();
+                console.log(radiusInKm)
                 const center = map.getCenter();
                 const centerPoint = [center.lng, center.lat];
 
-                if (radiusInKm <= 60) {
+                if (radiusInKm <= circleRadius) {
                     // overlay.style.display = 'block';
                     markers.forEach(marker => marker.getElement().style.display = 'none');
 
@@ -239,17 +253,6 @@
                             }
                         });
                     });
-
-                    // Function to format count values
-                    function formatCount(count) 
-                    {
-                        if (count >= 1000) 
-                        {
-                            return (count / 1000).toFixed(1) + 'k'; // Round to one decimal place and append 'k'
-                        }
-                        return count.toString(); // Return as string for display
-                    }
-
                     // Region markers 
                     regionData.features.forEach((feature, index) => 
                     {
@@ -274,7 +277,8 @@
                                 map.fitBounds(bbox, 
                                 {
                                     padding: 50,
-                                    maxZoom: 10
+                                    maxZoom: 10,
+                                    duration: 1000,
                                 });
 
                                 map.once('moveend', updateCircleVisibility);
@@ -300,6 +304,64 @@
                 }
             }
         });
+
+        let departmentMarkers = [];
+
+        function createDepartmentMarkers(region) {
+            // Remove existing department markers
+            departmentMarkers.forEach(marker => marker.remove());
+            departmentMarkers = [];
+
+            const sourceId = `department-borders-source-${region}`;
+            const source = map.getSource(sourceId);
+            if (!source) return;
+
+            const features = source._data.features;
+
+            features.forEach(feature => {
+                const center = turf.center(feature);
+                const departmentName = feature.properties.nom;
+                const departmentCode = feature.properties.code;
+
+                const el = document.createElement('div');
+                el.className = 'marker department-marker';
+                el.innerText = departmentCode;
+
+                const marker = new mapboxgl.Marker(el)
+                    .setLngLat(center.geometry.coordinates)
+                    .addTo(map);
+
+                departmentMarkers.push(marker);
+
+                el.addEventListener('click', () => {
+                    console.log(`Clicked on department: ${departmentName} (${departmentCode})`);
+                    const bbox = turf.bbox(feature.geometry);
+                    map.fitBounds(bbox, {
+                        padding: 50,
+                        maxZoom: 10
+                    });
+                });
+            });
+        }
+
+        // Add some CSS for the department markers
+        const style = document.createElement('style');
+        style.textContent = `
+            .department-marker {
+                background-color: #E94E1B;
+                color: white;
+                border-radius: 50%;
+                padding: 5px;
+                font-size: 10px;
+                font-weight: bold;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 15px;
+                height: 15px;
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
