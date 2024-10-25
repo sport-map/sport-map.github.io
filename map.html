@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>Carte interactive</title>
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
@@ -18,6 +18,7 @@
         <input type="text" id="search-input" placeholder="Ville, Code postale, Département" />
     </div>
     <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+    <script src="map.js"></script>
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibWF0c2Rkc2QiLCJhIjoiY20ybnZlcWdwMDgyMTJqc2NhaXZ1OXY1eCJ9.0jMxkpNKzhawFcWBWg6Yjg';
         // MAP Initialisation
@@ -30,7 +31,6 @@
             attributionControl: false
         });
 
-        
         // GLOBAL variables
         let markers = [];
         let lastClickedCoordinates = null;
@@ -159,6 +159,9 @@
         function updateSingleDepartmentVisibility(departmentCode) {
             if (map.getLayer('single-department-highlighted')) {
                 map.setFilter('single-department-highlighted', ['==', 'code', departmentCode || '']);
+            }
+            if (departmentCode) {
+                fetchAndDisplayFootballMarkers(departmentCode);
             }
         }
 

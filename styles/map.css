@@ -18,6 +18,10 @@ body {
     text-align: center;
     min-width: 20px;
     border: 2px solid #E94E1B; /* Optional: Add a border for visibility */
+    -webkit-user-select: none;  /* Safari */
+    -moz-user-select: none;     /* Firefox */
+    -ms-user-select: none;      /* IE10+/Edge */
+    user-select: none;          /* Standard */
 }
 #fixed-circle-overlay {
     position: fixed;
@@ -30,6 +34,7 @@ body {
     border-radius: 50%;
     pointer-events: none;
     display: none;
+    user-select: none;
 }
 #fixed-circle {
     position: fixed;
