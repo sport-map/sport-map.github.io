@@ -1,0 +1,90 @@
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #e84e19;
+}
+h1, h2, h3 {
+  font-family: "Rubik", sans-serif;
+  font-weight: bold;
+  color: white;
+
+}
+h1 {
+  font-size: 46px; 
+  text-align: center;
+  margin: 50% auto 10% auto;
+
+}
+
+h2 {
+  font-size: 24px; 
+  text-align: left;
+  padding: 1em;
+}
+
+h3 {font-size: 16px; text-align: center;}
+
+a {
+  color: white;
+  font-weight: bold;
+}
+.enter {
+  width: 150px;
+  height: 150px;
+  position: absolute;
+  left: 50%;
+  bottom: 5%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+  background-color: white;
+}
+
+.selection {
+  display: flex;
+  flex-direction: column; /* Permet d'aligner les éléments en colonne */
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Pour centrer verticalement */
+  margin: 0;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Deux colonnes */
+  gap: 10px; /* Espacement entre les boutons */
+  max-width: 300px; /* Largeur maximale pour centrer */
+  width: 100%; /* S'assurer que ça s'ajuste */
+}
+
+button {
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: transparent;
+  color: white;
+  border: 1px solid black;
+  border-radius: 5px;
+
+}
+
+button:hover {
+  border: 2px solid black;
+  border-color: white;
+  font-weight: 900;
+  color: black;
+
+}
+
+.active {
+  background-color: #4CAF50; /* Couleur de surbrillance */
+  color: white; /* Couleur du texte */
+}
+
+.validate-button {
+  display: block; /* Permet de le centrer */
+  margin: 20px auto; /* Marge en haut et en bas, centré horizontalement */
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
