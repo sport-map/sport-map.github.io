@@ -1,11 +1,12 @@
 // Récupérer tous les boutons et le bouton de validation
-const buttons = document.querySelectorAll('.board button'); // Mise à jour ici
-const validateButton = document.createElement('button');
-validateButton.textContent = 'Valider';
+const container = document.querySelector('.container'); // sélectionne le container
+const buttons = document.querySelectorAll('.board button'); // sélectionne tous les boutons
+const validateButton = document.createElement('button'); // crée le bouton
+validateButton.textContent = 'Suivant';
 validateButton.classList.add('validate-button');
 
 // Ajouter le bouton de validation à la fin de la page
-document.body.appendChild(validateButton);
+container.appendChild(validateButton);
 
 // Variable pour stocker le sport sélectionné
 let selectedSport = null;
@@ -27,8 +28,24 @@ buttons.forEach(button => {
 // Fonction pour gérer la validation
 validateButton.addEventListener('click', () => {
     if (selectedSport) {
-        // Rediriger vers la page de la carte avec le sport sélectionné
-        window.location.href = `map.html?sport=${encodeURIComponent(selectedSport)}`;
+        // Effectuer le fetch pour récupérer les équipements sportifs
+        fetch('https://raw.githubusercontent.com/Main-Vision/main-vision.github.io/refs/heads/main/data-es-types-only.json')
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur réseau');
+                return response.json();
+            })
+            .then(data => {
+                // Vérifier la structure des données pour s'assurer que le filtrage est correct
+                const filteredData = data.filter(item => item.sport === selectedSport);
+
+                // Stocker les données dans localStorage et rediriger vers la carte
+                localStorage.setItem('sportData', JSON.stringify(filteredData));
+                window.location.href = `map.html?sport=${encodeURIComponent(selectedSport)}`;
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération des données:', error);
+                alert('Une erreur est survenue lors de la récupération des données.');
+            });
     } else {
         alert('Veuillez sélectionner un sport avant de valider.');
     }
