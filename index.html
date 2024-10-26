@@ -12,14 +12,54 @@
 
 </head>
 <body>
-    <container>
+    <div class="container">
 
-        <H1>Le sport</H1>
+        <h1 class="title">Sportsmap</h1>
 
-        <div class="enter">
-            <a href="selection.html"> <button class="enterbtn">Select</button></a>
-        </div>
+<!--         <a href="selection.html">
+            <div class="circle">
+                <div class="logo"></div>
+                <div class="text">
+                    <p>
+                        Trouvez votre sport sur la map -
+                    </p>
+                </div>
+            </div>
+        </a> -->
 
-    </container>
+        <a href="selection.html" class="circle">
+            <div class="logo"></div>
+            <div class="text">
+                <p>Cherchez votre sport sur la carte -</p>
+            </div>
+        </a>
+
+    </div>
+
+    <script>
+        const text = document.querySelector(".text");
+text.innerHTML = text.innerText
+	.split("")
+	.map(
+		(char, i) => `<span style="transform:rotate(${i * 10.3}deg)">${char}</span>`
+	)
+	.join("");
+
+    </script>
+    <script>
+        document.querySelector('.circle').addEventListener('click', function (event) {
+            event.preventDefault(); // Empêche la redirection immédiate
+
+            // Change l'image au clic
+            const logo = document.querySelector('.logo');
+            logo.style.backgroundImage = "url('assets/img/run2.png')";
+
+            // Redirige vers la page après 1 seconde
+            setTimeout(() => {
+                window.location.href = this.href;
+            }, 1000); // Délai de 1 seconde
+        });
+    </script>
+
 </body>
 </html>

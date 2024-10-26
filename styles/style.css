@@ -1,26 +1,44 @@
-
-body {
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
   background-color: #e84e19;
 }
+
+.container {
+  position: relative;
+  width: 100%;
+  display: flex; /* Utiliser flexbox */
+  flex-direction: column; /* Alignement vertical */
+  /*justify-content: center; /* Centrer verticalement */
+  align-items: center; /* Centrer horizontalement */
+  height: 100vh; /* Prendre toute la hauteur de la fenêtre */
+}
+
+p {
+  font-size: 1.5em;
+  color: black;
+}
+
 h1, h2, h3 {
   font-family: "Rubik", sans-serif;
   font-weight: bold;
   color: white;
-
+  padding: 1em;
 }
+
 h1 {
   font-size: 46px; 
-  text-align: center;
-  margin: 50% auto 10% auto;
-
 }
 
 h2 {
   font-size: 24px; 
-  text-align: left;
-  padding: 1em;
 }
 
 h3 {font-size: 16px; text-align: center;}
@@ -29,25 +47,62 @@ a {
   color: white;
   font-weight: bold;
 }
-.enter {
-  width: 150px;
-  height: 150px;
-  position: absolute;
-  left: 50%;
-  bottom: 5%;
-  -webkit-transform: translateX(-50%);
-  transform: translateX(-50%);
-  background-color: white;
+
+/*** index.html ***/
+
+h1.title {
+  text-align: center;
+  padding-top: 20%;
+  padding-bottom: 5%;
 }
 
-.selection {
-  display: flex;
-  flex-direction: column; /* Permet d'aligner les éléments en colonne */
-  justify-content: center;
-  align-items: center;
-  height: 100vh; /* Pour centrer verticalement */
-  margin: 0;
+.circle {
+	position: absolute;
+	width: 200px;
+	height: 200px;
+	border-radius: 100vmax;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+  left: 50%;
+  bottom: 20%;
+  transform: translateX(-50%); /* Ajuste pour centrer parfaitement */
 }
+
+.logo {
+	position: absolute;
+	width: 120px;
+	height: 120px;
+	background: url("../assets/img/run.png");
+	background-size: cover;
+	border-radius: 100vmax;
+	background-position: center;
+}
+
+.text {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	font-family: consolas;
+	color: #fff;
+	font-size: 17px;
+	animation: textRotation 8s linear infinite;
+}
+
+@keyframes textRotation {
+	to {
+		transform: rotate(-360deg);
+	}
+}
+
+.text span {
+	position: absolute;
+	left: 50%;
+	font-size: 1.2em;
+	transform-origin: 0 100px;
+}
+
+/*** selection.html ***/
 
 .board {
   display: grid;
@@ -65,7 +120,6 @@ button {
   color: white;
   border: 1px solid black;
   border-radius: 5px;
-
 }
 
 button:hover {
@@ -73,18 +127,21 @@ button:hover {
   border-color: white;
   font-weight: 900;
   color: black;
-
 }
 
 .active {
-  background-color: #4CAF50; /* Couleur de surbrillance */
+  background-color: #3498DB; /* Couleur de surbrillance */
   color: white; /* Couleur du texte */
 }
 
 .validate-button {
-  display: block; /* Permet de le centrer */
-  margin: 20px auto; /* Marge en haut et en bas, centré horizontalement */
-  padding: 10px;
+  display: block;
+  margin: auto;
   font-size: 16px;
+  background-color: black;
   cursor: pointer;
+}
+
+.validate-button:hover {
+  color: white;
 }
