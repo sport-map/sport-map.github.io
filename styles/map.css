@@ -7,7 +7,7 @@ body {
     top: 0;
     bottom: 0; /* Adjusted to leave space for the bottom bar */
     width: 100%;
-    height: 80%;
+    height: 72%;
 }
 .marker {
     background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
@@ -24,17 +24,17 @@ body {
     user-select: none;          /* Standard */
 }
 #fixed-circle-overlay {
-    position: fixed;
+    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 150px;
-    height: 150px;
     border: 2px solid #E94E1B;
     border-radius: 50%;
     pointer-events: none;
     display: none;
-    user-select: none;
+    z-index: 1000; /* Ensure it's above other map elements */
+    width: 125px;
+    height: 125px;
 }
 #fixed-circle {
     position: fixed;

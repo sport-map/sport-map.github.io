@@ -27,7 +27,7 @@ function createFootballMarkers(data) {
 
 // Function to fetch and display markers
 function fetchAndDisplayFootballMarkers(selectedDepartment) {
-    const apiUrl = `https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/records?where=dep_code="${selectedDepartment}"`;
+    const apiUrl = `https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/records?where=dep_code="${selectedDepartment}"and equip_aps_code like "2901"`;
 
     fetch(apiUrl)
         .then(response => response.json())

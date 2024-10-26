@@ -9,8 +9,9 @@
     <link rel="stylesheet" href="styles/map.css">
 </head>
 <body>
-    <div id='map'></div>
-    <div id='fixed-circle-overlay'></div>
+    <div id='map'>
+        <div id='fixed-circle-overlay'></div>
+    </div>
     <div id="fixed-circle">
         <img src="assets/img/ballon-de-foot.png" alt="Ballon de Foot" />
     </div>
@@ -22,45 +23,47 @@
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibWF0c2Rkc2QiLCJhIjoiY20ybnZlcWdwMDgyMTJqc2NhaXZ1OXY1eCJ9.0jMxkpNKzhawFcWBWg6Yjg';
         // MAP Initialisation
-        var map = new mapboxgl.Map(
-        {
+        var map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/streets-v11',
+            style: 'mapbox://styles/mapbox/navigation-night-v1',
             center: [2.213749, 46.227638],
-            zoom:4.5,
+            zoom: 4.5,
             attributionControl: false
         });
 
-        // GLOBAL variables
+        // -- GLOBAL -- // 
         let markers = [];
-        let lastClickedCoordinates = null;
+        // let lastClickedCoordinates = null;
         let currentRegionName = null;
-        const circleRadius = 90;
+        const circleRadiusThresholdStateDepartement = 75;
+        const circleRadiusThresholdStateRegion = 200;
+        const circleOverlaySize = 125;
+
+        // ----- STYLE OPTION ----- //
         const regionBorderLineColor = '#E94E1B'; 
         const regionhighlightedColor = '#E94E1B'; 
         const regionhighlightedOpacity = 0.2;
-        const departementBorderLineColor = '#E94E1B'; 
-
-        // Add these new global variables
-        let currentDepartmentCode = null;
+        const departementBorderLineColor = '#E94E1B';
         const singleDepartmentHighlightColor = '#E94E1B';
-        const singleDepartmentHighlightOpacity = 0.2;
+        const singleDepartmentHighlightOpacity = 0.3
 
-        function formatCount(count) 
-        {
-            if (count >= 1000) 
-            {
-                return (count / 1000).toFixed(1) + 'k'; // Round to one decimal place and append 'k'
+        function formatCount(count) {
+            if (count >= 1000) {
+                return (count / 1000).toFixed(1) + 'k';
             }
-            return count.toString(); // Return as string for display
+            return count.toString();
         }
 
-        function calculateCircleRadiusInKm() 
-        {
-            if (!lastClickedCoordinates) return 0;
+
+        // ----- FUNCTIONS FETCHING DATA ----- //
+        
+
+
+        function calculateCircleRadiusInKm() {
+            // if (!lastClickedCoordinates) return 0;
 
             const center = map.getCenter();
-            const edge = map.unproject([map.getContainer().offsetWidth / 2 + circleRadius, map.getContainer().offsetHeight / 2]);
+            const edge = map.unproject([map.getContainer().offsetWidth / 2 + circleOverlaySize, map.getContainer().offsetHeight / 2]);
             return turf.distance(
                 turf.point([center.lng, center.lat]),
                 turf.point([edge.lng, edge.lat]),
@@ -68,8 +71,30 @@
             );
         }
 
-        function getCurrentRegion(centerPoint) 
-        {
+        /**
+         * Updates the size and position of a circular overlay on the map based on the current zoom level and bounds
+         * This function calculates the appropriate diameter for the overlay circle based on the map's visible area,
+         * and positions it at the specified center point.
+         * 
+         * @param {Object} map - The Mapbox map instance
+         * @param {Object} overlay - The DOM element representing the circular overlay
+         * @param {Array} center - The [lng, lat] coordinates for the center of the overlay
+         */
+        function updateCircleOverlay(map, overlay) {
+            const mapContainer = map.getContainer();
+            const size = Math.min(mapContainer.offsetWidth, mapContainer.offsetHeight) * 0.9;
+            
+            const topRight = map.project(ne);
+            const bottomLeft = map.project(sw);
+            // circlePixelDiameter
+            overlay.style.width = `${circlePixelDiameter}px`;
+            overlay.style.height = `${circlePixelDiameter}px`;
+            overlay.style.left = '50%';
+            overlay.style.top = '50%';
+            overlay.style.transform = 'translate(-50%, -50%)';
+        }
+
+        function getCurrentRegion(centerPoint) {
             const source = map.getSource('france-regions');
             if (!source) return null;
 
@@ -78,32 +103,24 @@
 
             const point = turf.point(centerPoint);
 
-            for (const feature of data.features) 
-            {
-                if (turf.booleanPointInPolygon(point, feature)) 
-                {
+            for (const feature of data.features) {
+                if (turf.booleanPointInPolygon(point, feature)) {
                     return feature.properties.nom;
                 }
             }
             return null;
         }
 
-        function updateDepartmentsVisibility(regionName) 
-        {
-            // Hide all department layers first
-            map.getStyle().layers.forEach(layer => 
-            {
-                if (layer.id.startsWith('department-borders-')) 
-                {
+        function updateDepartmentsVisibility(regionName) {
+            map.getStyle().layers.forEach(layer => {
+                if (layer.id.startsWith('department-borders-')) {
                     map.setLayoutProperty(layer.id, 'visibility', 'none');
                 }
             });
 
-            // Remove existing department markers
             departmentMarkers.forEach(marker => marker.remove());
             departmentMarkers = [];
 
-            // Show only the selected region's departments
             if (regionName) {
                 const normalizedRegionName = regionName.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
                 const layerId = `department-borders-${normalizedRegionName}`;
@@ -114,45 +131,75 @@
             }
         }
 
-        function updateRegionVisibility(newRegion) 
-        {
-            if (map.getLayer('region-highlighted')) 
-            {
+        function updateRegionVisibility(newRegion) {
+            if (map.getLayer('region-highlighted')) {
                 map.setFilter('region-highlighted', ['==', 'nom', newRegion || '']);
             }
         }
 
-        function updateCircleVisibility() {
+        /**
+         * This function acts as a state controller for the map, managing the visibility of the circle, markers, and the visibility of regions and departments.
+         * It is called whenever the map is moved, when or when the map is zoomed.
+         */
+        function manageMapState() {
             const overlay = document.getElementById('fixed-circle-overlay');
-            if (lastClickedCoordinates) {
+            // if (lastClickedCoordinates) {
                 const radiusInKm = calculateCircleRadiusInKm();
-                console.log(radiusInKm)
+                console.log(radiusInKm);
                 const center = map.getCenter();
                 const centerPoint = [center.lng, center.lat];
+                const newRegion = getCurrentRegion(centerPoint);
+                
+                // ---- DEPARTEMENT TO COMMUNE THRESHOLD ---- //
+                if (radiusInKm < circleRadiusThresholdStateDepartement) {
+                    // Find and log communes within the circle
+                    updateRegionVisibility('');
 
-                if (radiusInKm <= circleRadius) {
+                    updateDepartmentsVisibility('');
+
+                    updateSingleDepartmentVisibility(currentDepartmentCode);
+                    // fetch real data with the radius size of the circle and gouv api 
+
+                }else {
+                    updateSingleDepartmentVisibility(null);
+                }
+                
+                // ---- REGION TO DEPARTEMENT THRESHOLD ---- //
+                if (radiusInKm < circleRadiusThresholdStateRegion) {
+                    overlay.style.display = 'block';
                     markers.forEach(marker => marker.getElement().style.display = 'none');
-
-                    const newRegion = getCurrentRegion(centerPoint);
 
                     if (newRegion !== currentRegionName) {
                         updateRegionVisibility(newRegion);
                         updateDepartmentsVisibility(newRegion);
-                        updateSingleDepartmentVisibility(currentDepartmentCode);
-
                         currentRegionName = newRegion;
-                        currentDepartmentCode = null; // Reset department when changing region
                     }
-
                 } else {
                     markers.forEach(marker => marker.getElement().style.display = '');
+
                     updateRegionVisibility('');
                     updateDepartmentsVisibility('');
-                    updateSingleDepartmentVisibility(null);
+
                     currentRegionName = null;
                     currentDepartmentCode = null;
+
+                    overlay.style.display = 'none'; // Hide when no coordinates are set
                 }
+            // }
+        }
+
+        function findCommunesWithinCircle(circle) {
+            const communesWithin = [];
+            // Assuming you have a GeoJSON source for communes
+            const communesSource = map.getSource('communes-source');
+            if (communesSource && communesSource._data) {
+                communesSource._data.features.forEach(commune => {
+                    if (turf.booleanPointInPolygon(turf.center(commune), circle)) {
+                        communesWithin.push(commune.properties.nom);
+                    }
+                });
             }
+            return communesWithin;
         }
 
         // Add this new function
@@ -160,24 +207,16 @@
             if (map.getLayer('single-department-highlighted')) {
                 map.setFilter('single-department-highlighted', ['==', 'code', departmentCode || '']);
             }
-            if (departmentCode) {
-                fetchAndDisplayFootballMarkers(departmentCode);
-            }
         }
 
-        map.on('load', function() 
-        {
+        map.on('load', function() {
             // Create an array of promises for all data fetching
             const fetchPromises = [
-                // Fetch regions data
                 fetch('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions-version-simplifiee.geojson')
                     .then(resp => resp.json()),
-                // Fetch count data
                 fetch('https://main-vision.github.io/foot_by_region.json')
                     .then(resp => resp.json()),
-                // Fetch all department data
-                ...Object.entries(
-                {
+                ...Object.entries({
                     'auvergne-rhône-alpes': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-auvergne-rhône-alpes.geojson',
                     'bourgogne-franche-comté': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-bourgogne-franche-comté.geojson',
                     'bretagne': 'https://raw.githubusercontent.com/main-vision/main-vision.github.io/main/departements-bretagne.geojson',
@@ -199,27 +238,20 @@
             ];
 
             Promise.all(fetchPromises)
-                .then(([regionData, countData, ...departmentDataArray]) => 
-                {
-                    // Process regions data
+                .then(([regionData, countData, ...departmentDataArray]) => {
                     regionData.features.forEach(feature => {
                         const region = feature.properties.nom;
                         const countObj = countData.find(item => item.region === region);
-                        if (countObj) 
-                        {
+                        if (countObj) {
                             feature.properties.count = countObj.count;
                         }
                     });
 
-                    // Add region source and layers
-                    map.addSource('france-regions', 
-                    {
+                    map.addSource('france-regions', {
                         type: 'geojson',
                         data: regionData
                     });
-                    // france-region-borders
-                    map.addLayer(
-                    {
+                    map.addLayer({
                         'id': 'france-region-borders',
                         'type': 'line',
                         'source': 'france-regions',
@@ -229,9 +261,7 @@
                             'line-width': 1
                         }
                     });
-                    //region-highlighted
-                    map.addLayer(
-                    {
+                    map.addLayer({
                         'id': 'region-highlighted',
                         'type': 'fill',
                         'source': 'france-regions',
@@ -243,17 +273,29 @@
                         'filter': ['==', 'nom', '']
                     });
 
-                    // Add all department sources and layers (initially hidden)
-                    departmentDataArray.forEach(({ region, data }) => 
-                    {
+                    departmentDataArray.forEach(({ region, data }) => {
                         const sourceId = `department-borders-source-${region}`;
                         const layerId = `department-borders-${region}`;
+                        // const strokeLayerId = `department-borders-stro${region}`;
 
-                        map.addSource(sourceId, 
-                        {
+                        map.addSource(sourceId, {
                             type: 'geojson',
                             data: data
                         });
+
+                        // Add fill layer for click interactions
+                        // map.addLayer({
+                        //     'id': layerId,
+                        //     'type': 'fill',
+                        //     'source': sourceId,
+                        //     'layout': {
+                        //         'visibility': 'none'
+                        //     },
+                        //     'paint': {
+                        //         'fill-color': 'transparent',
+                        //         'fill-opacity': 0
+                        //     }
+                        // });
 
                         map.addLayer(
                           {
@@ -269,6 +311,37 @@
                                 'line-color': departementBorderLineColor,
                                 'line-width': 2
                             }
+                        });
+
+                        // Add click event listener for the department layer
+                        map.on('click', layerId, function(e) {
+                            const feature = e.features[0];
+                            const departmentName = feature.properties.nom;
+                            const departmentCode = feature.properties.code;
+                            const bbox = turf.bbox(feature.geometry);
+
+                            console.log(`Clicked on department: ${departmentName} (${departmentCode})`);
+                            map.fitBounds(bbox, {
+                                padding: 50,
+                                maxZoom: 10
+                            });
+
+                            // Update the current department and visibility
+                            currentDepartmentCode = departmentCode;
+                            updateSingleDepartmentVisibility(departmentCode);
+
+                            // Update the source for the single-department-highlighted layer
+                            if (map.getSource('single-department-highlighted')) {
+                                map.getSource('single-department-highlighted').setData({
+                                    type: 'FeatureCollection',
+                                    features: [feature]
+                                });
+                            } else {
+                                console.error('single-department-highlighted source not found');
+                            }
+
+                            // Trigger circle visibility update
+                            manageMapState();
                         });
                     });
 
@@ -293,16 +366,13 @@
                         }
                     });
 
-                    // Region markers 
-                    regionData.features.forEach((feature, index) => 
-                    {
-                        if (feature.properties.count) 
-                        {
+                    regionData.features.forEach((feature, index) => {
+                        if (feature.properties.count) {
                             const center = turf.center(feature);
 
                             const el = document.createElement('div');
                             el.className = 'marker';
-                            el.innerText = formatCount(feature.properties.count); // Use the formatCount function
+                            el.innerText = formatCount(feature.properties.count);
 
                             const marker = new mapboxgl.Marker(el)
                                 .setLngLat(center.geometry.coordinates)
@@ -310,18 +380,19 @@
 
                             markers.push(marker);
 
-                            el.addEventListener('click', () => 
-                            {
-                                lastClickedCoordinates = center.geometry.coordinates;
+                            el.addEventListener('click', () => {
+                                // lastClickedCoordinates = center.geometry.coordinates;
                                 const bbox = turf.bbox(feature);
-                                map.fitBounds(bbox, 
-                                {
-                                    padding: 50,
-                                    maxZoom: 10,
+                                map.fitBounds(bbox, {
+                                    padding:20,
                                     duration: 1000,
-                                });
+                                })
+//                                 setTimeout(() => {
+//     map.zoomTo(6.5, {duration: 500});
+// }, 1100);
+                                
 
-                                map.once('moveend', updateCircleVisibility);
+                                map.once('moveend', manageMapState);
                             });
                         }
                     });
@@ -329,21 +400,33 @@
         });
 
         let isMoveEndTriggered = false;
-        map.on('move', function(e) 
-        {
-            if (e.source !== 'doubleClickZoom' && e.source !== 'touchZoomRotate') 
-            {
-                if (!isMoveEndTriggered) 
-                {
-                    isMoveEndTriggered = true;
-                    map.once('moveend', function() 
-                    {
-                        isMoveEndTriggered = false;
-                        updateCircleVisibility();
-                    });
+let isZoomEndTriggered = false;
+
+map.on('move', function(e) {
+    if (e.source !== 'doubleClickZoom' && e.source !== 'touchZoomRotate') {
+        if (!isMoveEndTriggered) {
+            isMoveEndTriggered = true;
+            map.once('moveend', function() {
+                isMoveEndTriggered = false;
+                if (!isZoomEndTriggered) {
+                    manageMapState();
                 }
+            });
+        }
+    }
+});
+
+map.on('zoom', function() {
+    if (!isZoomEndTriggered) {
+        isZoomEndTriggered = true;
+        map.once('zoomend', function() {
+            isZoomEndTriggered = false;
+            if (!isMoveEndTriggered) {
+                manageMapState();
             }
         });
+    }
+});
 
         let departmentMarkers = [];
 
@@ -374,29 +457,30 @@
                 departmentMarkers.push(marker);
 
                 el.addEventListener('click', () => {
-                    // get good 
                     console.log(`Clicked on department: ${departmentName} (${departmentCode})`);
                     const bbox = turf.bbox(feature.geometry);
                     map.fitBounds(bbox, {
                         padding: 50,
                         maxZoom: 10
                     });
-
+                    //manageMapState();
                     // Update the current department and visibility
                     currentDepartmentCode = departmentCode;
                     updateSingleDepartmentVisibility(departmentCode);
 
                     // Update the source for the single-department-highlighted layer
-                    const sourceId = `department-borders-source-${region}`;
-                    map.getSource('single-department-highlighted').setData(map.getSource(sourceId)._data);
+                    if (map.getSource('single-department-highlighted')) {
+                        map.getSource('single-department-highlighted').setData(source._data);
+                    } else {
+                        console.error('single-department-highlighted source not found');
+                    }
 
                     // Trigger circle visibility update
-                    updateCircleVisibility();
+                    manageMapState();
                 });
             });
         }
 
-        // Add some CSS for the department markers
         const style = document.createElement('style');
         style.textContent = `
             .department-marker {
