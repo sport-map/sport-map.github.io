@@ -113,35 +113,48 @@ h1.title {
 }
 
 button {
+  display: flex;
+  flex-direction: column; /* Aligner les éléments verticalement */
+  align-items: center; /* Centrer horizontalement */
   padding: 10px;
   font-size: 16px;
   cursor: pointer;
-  background-color: transparent;
-  color: white;
-  border: 1px solid black;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #000;
+  border-style: solid;
+  border-width: 1px 2px 1px 1px;
+  border-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.4) rgba(0,0,0,0.7) rgba(0,0,0,0.5);
   border-radius: 5px;
 }
 
-button:hover {
-  border: 2px solid black;
-  border-color: white;
-  font-weight: 900;
-  color: black;
-}
-
 .active {
-  background-color: #3498DB; /* Couleur de surbrillance */
-  color: white; /* Couleur du texte */
+  background-color: #3498DB;
+  color: white;
+  border-style: solid;
+  border-width: 1px 2px 1px 1px;
+  border-color: rgba(0,0,0,0.7) rgba(0,0,0,0.5) rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.4);
 }
 
 .validate-button {
   display: block;
   margin: auto;
+  padding: 10px;
   font-size: 16px;
   background-color: black;
+  color: #fff;
   cursor: pointer;
 }
 
-.validate-button:hover {
-  color: white;
+button.icon {
+  width: 50px !important;
+  height: 50px !important;
+  object-fit: contain;
+}
+
+button img {
+  max-width: 100%; /* S'assurer que l'image ne dépasse pas le bouton */
+  max-height: 100%;
+  width: 60px; /* Appliquer la taille souhaitée */
+  height: 60px;
+  object-fit: contain;
 }
