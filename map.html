@@ -39,8 +39,9 @@
         let markers = [];
         // let lastClickedCoordinates = null;
         let currentRegionName = null;
-        const circleRadiusThresholdStateDepartement = 75;
-        const circleRadiusThresholdStateRegion = 200;
+        let currentDepartmentCode = null;
+        const circleRadiusThresholdStateDepartement = 30;
+        const circleRadiusThresholdStateRegion = 150;
         const circleOverlaySize = 125;
 
         // ----- STYLE OPTION ----- //
@@ -51,17 +52,18 @@
         const singleDepartmentHighlightColor = '#E94E1B';
         const singleDepartmentHighlightOpacity = 0.3
 
+        
+
+
+        // ----- FUNCTIONS FETCHING DATA ----- //
+        
+
         function formatCount(count) {
             if (count >= 1000) {
                 return (count / 1000).toFixed(1) + 'k';
             }
             return count.toString();
         }
-
-
-        // ----- FUNCTIONS FETCHING DATA ----- //
-        
-
 
         function calculateCircleRadiusInKm() {
             // if (!lastClickedCoordinates) return 0;
@@ -115,6 +117,25 @@
             return null;
         }
 
+        // Function to get the current department based on the map's center
+        function getCurrentDepartment(centerPoint, region) {
+            const sourceId = `department-borders-source-${region.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}`;
+            const source = map.getSource(sourceId);
+            if (!source) return null;
+
+            const data = source._data;
+            if (!data || !data.features) return null;
+
+            const point = turf.point(centerPoint);
+
+            for (const feature of data.features) {
+                if (turf.booleanPointInPolygon(point, feature)) {
+                    return feature.properties.code; // Ensure 'code' is the correct property
+                }
+            }
+            return null;
+        }
+
         function updateDepartmentsVisibility(regionName) {
             map.getStyle().layers.forEach(layer => {
                 if (layer.id.startsWith('department-borders-')) {
@@ -126,6 +147,7 @@
             departmentMarkers = [];
 
             if (regionName) {
+                console.log(regionName);
                 const normalizedRegionName = regionName.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
                 const layerId = `department-borders-${normalizedRegionName}`;
                 if (map.getLayer(layerId)) {
@@ -135,11 +157,41 @@
             }
         }
 
-        function updateRegionVisibility(newRegion) {
-            if (map.getLayer('region-highlighted')) {
-                map.setFilter('region-highlighted', ['==', 'nom', newRegion || '']);
+        // Function to update the visibility of the current department
+        function updateSingleDepartmentVisibility(departmentCode, region) {
+            if (!departmentCode || !region) {
+                map.getSource('single-department-highlighted').setData({
+                    type: 'FeatureCollection',
+                    features: []
+                });
+                return;
+            }
+            const sourceId = `department-borders-source-${region.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}`;
+            const source = map.getSource(sourceId);
+            if (!source) return;
+
+            const data = source._data;
+            if (!data || !data.features) return;
+
+            const departmentFeature = data.features.find(feature => feature.properties.code === departmentCode);
+            if (departmentFeature) {
+                map.getSource('single-department-highlighted').setData({
+                    type: 'FeatureCollection',
+                    features: [departmentFeature]
+                });
+            } else {
+                map.getSource('single-department-highlighted').setData({
+                    type: 'FeatureCollection',
+                    features: []
+                });
             }
         }
+
+        // function updateRegionVisibility(newRegion) {
+        //     if (map.getLayer('region-highlighted')) {
+        //         map.setFilter('region-highlighted', ['==', 'nom', newRegion || '']);
+        //     }
+        // }
 
         /**
          * This function acts as a state controller for the map, managing the visibility of the circle, markers, and the visibility of regions and departments.
@@ -147,69 +199,32 @@
          */
         function manageMapState() {
             const overlay = document.getElementById('fixed-circle-overlay');
-            // if (lastClickedCoordinates) {
-                const radiusInKm = calculateCircleRadiusInKm();
-                console.log(radiusInKm);
-                const center = map.getCenter();
-                const centerPoint = [center.lng, center.lat];
-                const newRegion = getCurrentRegion(centerPoint);
-                
-                // ---- DEPARTEMENT TO COMMUNE THRESHOLD ---- //
-                if (radiusInKm < circleRadiusThresholdStateDepartement) {
-                    // Find and log communes within the circle
-                    updateRegionVisibility('');
+            const radiusInKm = calculateCircleRadiusInKm();
+            const center = map.getCenter();
+            const centerPoint = [center.lng, center.lat];
+            const newRegion = getCurrentRegion(centerPoint);
+            let currentDepartmentCode = getCurrentDepartment(centerPoint, newRegion);
 
-                    updateDepartmentsVisibility('');
-
-                    updateSingleDepartmentVisibility(currentDepartmentCode);
-                    // fetch real data with the radius size of the circle and gouv api 
-
-                }else {
-                    updateSingleDepartmentVisibility(null);
-                }
-                
-                // ---- REGION TO DEPARTEMENT THRESHOLD ---- //
-                if (radiusInKm < circleRadiusThresholdStateRegion) {
-                    overlay.style.display = 'block';
-                    markers.forEach(marker => marker.getElement().style.display = 'none');
-
-                    if (newRegion !== currentRegionName) {
-                        updateRegionVisibility(newRegion);
-                        updateDepartmentsVisibility(newRegion);
-                        currentRegionName = newRegion;
-                    }
-                } else {
-                    markers.forEach(marker => marker.getElement().style.display = '');
-
-                    updateRegionVisibility('');
-                    updateDepartmentsVisibility('');
-
-                    currentRegionName = null;
-                    currentDepartmentCode = null;
-
-                    overlay.style.display = 'none'; // Hide when no coordinates are set
-                }
-            // }
-        }
-
-        function findCommunesWithinCircle(circle) {
-            const communesWithin = [];
-            // Assuming you have a GeoJSON source for communes
-            const communesSource = map.getSource('communes-source');
-            if (communesSource && communesSource._data) {
-                communesSource._data.features.forEach(commune => {
-                    if (turf.booleanPointInPolygon(turf.center(commune), circle)) {
-                        communesWithin.push(commune.properties.nom);
-                    }
-                });
+            // FRANCE STATE
+            if (radiusInKm > circleRadiusThresholdStateRegion) {
+                updateDepartmentsVisibility('');
+                updateSingleDepartmentVisibility(null, newRegion);
+                overlay.style.display = 'none';
+                markers.forEach(marker => marker.getElement().style.display = '');
             }
-            return communesWithin;
-        }
-
-        // Add this new function
-        function updateSingleDepartmentVisibility(departmentCode) {
-            if (map.getLayer('single-department-highlighted')) {
-                map.setFilter('single-department-highlighted', ['==', 'code', departmentCode || '']);
+            // REGION STATE
+            else if (radiusInKm > circleRadiusThresholdStateDepartement && radiusInKm < circleRadiusThresholdStateRegion) {
+                overlay.style.display = 'block';
+                markers.forEach(marker => marker.getElement().style.display = 'none');
+                updateSingleDepartmentVisibility(null, newRegion);
+                updateDepartmentsVisibility(newRegion);
+            }
+            // DEPARTEMENT STATE
+            else if (radiusInKm < circleRadiusThresholdStateDepartement) {
+                overlay.style.display = 'block';
+                markers.forEach(marker => marker.getElement().style.display = 'none');
+                updateSingleDepartmentVisibility(currentDepartmentCode, newRegion);
+                updateDepartmentsVisibility(newRegion);
             }
         }
 
@@ -324,28 +339,30 @@
                             const departmentCode = feature.properties.code;
                             const bbox = turf.bbox(feature.geometry);
 
-                            console.log(`Clicked on department: ${departmentName} (${departmentCode})`);
                             map.fitBounds(bbox, {
                                 padding: 50,
                                 maxZoom: 10
                             });
 
-                            // Update the current department and visibility
-                            currentDepartmentCode = departmentCode;
-                            updateSingleDepartmentVisibility(departmentCode);
+                        //     // Update the current department and visibility
+                        //     // currentDepartmentCode = departmentCode;
+                        //     // if (departmentCode) {
+                        //     //     console.log('departmentCode oNclick');
+                        //     //     console.log(departmentCode);
+                        //     // updateSingleDepartmentVisibility(departmentCode);
+                        //     // }
+                        //     // Update the source for the single-department-highlighted layer
+                        //     // if (map.getSource('single-department-highlighted')) {
+                        //     //     map.getSource('single-department-highlighted').setData({
+                        //     //         type: 'FeatureCollection',
+                        //     //         features: [feature]
+                        //     //     });
+                        //     // } else {
+                        //     //     console.error('single-department-highlighted source not found');
+                        //     // }
 
-                            // Update the source for the single-department-highlighted layer
-                            if (map.getSource('single-department-highlighted')) {
-                                map.getSource('single-department-highlighted').setData({
-                                    type: 'FeatureCollection',
-                                    features: [feature]
-                                });
-                            } else {
-                                console.error('single-department-highlighted source not found');
-                            }
-
-                            // Trigger circle visibility update
-                            manageMapState();
+                        //     // Trigger circle visibility update
+                        //     manageMapState();
                         });
                     });
 
